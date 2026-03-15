@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #1A73E8;
+  --color-primary-dark: #1557B0;
+  --color-accent: #FF6D00;
+  --color-accent-dark: #E65100;
+  --font-sans: "Public Sans", sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 font-sans;
+    /* selection은 @apply 대신 직접 CSS로 작성하는 것이 안전합니다 */
+    font-family: var(--font-sans);
+  }
+
+  body::selection {
+    background-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
+    color: var(--color-primary);
+  }
+
+  .dark body {
+    @apply bg-slate-950 text-slate-100;
+  }
+
+  /* Control Tower Scrollbar */
+  .control-tower-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .control-tower-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  .control-tower-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-slate-200 dark:bg-slate-800 rounded-full;
+  }
+}
+
+@layer components {
+  .font-black {
+    font-weight: 900;
+  }
+}
