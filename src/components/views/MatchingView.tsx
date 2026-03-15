@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useCompanyStore } from '../../hooks/useCompany';
 import { useEditorStore } from '../../hooks/useEditor';
 import { mockGrants } from '../../lib/grants';
@@ -6,7 +6,8 @@ import type { Grant } from '../../lib/grants';
 
 const MatchingView: React.FC = () => {
   const { profile, calculateSuccessScore } = useCompanyStore();
-  const { setView, addDocument, setActiveId } = useEditorStore();
+  const { setView, addDocument } = useEditorStore();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // 업력 계산 (현재 날짜 기준)
   const yearsSinceEstablishment = useMemo(() => {
@@ -28,15 +29,12 @@ const MatchingView: React.FC = () => {
   };
 
   const handleStartStrategy = (grantTitle: string) => {
-    // 1. 새로운 문서를 생성 (내부에서 activeId도 설정됨)
-    const newDocId = addDocument(`${grantTitle} 전략 수립`);
-    
-    // 2. 에디터 뷰로 이동
+    addDocument(`${grantTitle} 전략 수립`);
     setView('vault');
   };
 
   return (
-    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
       <header className="flex justify-between items-end">
         <div>
           <h1 className="text-4xl font-black text-slate-950 dark:text-white mb-2">전략적 매칭</h1>
@@ -68,81 +66,129 @@ const MatchingView: React.FC = () => {
             <p className="text-sm text-slate-500 dark:text-slate-400 font-bold">총 3,421개의 정부 공고 중 {mockGrants.length}개의 최적 사업을 발견했습니다.</p>
           </div>
         </div>
-        <div className="flex -space-x-3">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="w-10 h-10 rounded-full border-4 border-white dark:border-slate-900 bg-slate-200 dark:bg-slate-800" />
-          ))}
-          <div className="w-10 h-10 rounded-full border-4 border-white dark:border-slate-900 bg-primary flex items-center justify-center text-[10px] font-black text-white">+8</div>
-        </div>
       </section>
 
-      {/* 추천 공고 리스트 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      {/* 공고 리스트 (확장형) */}
+      <div className="space-y-8">
         {mockGrants.map((grant) => {
+          const isExpanded = expandedId === grant.id;
           const isEligible = checkEligibility(grant);
           const score = calculateSuccessScore(grant.requirements);
 
           return (
             <div 
               key={grant.id} 
-              className={`group relative p-10 rounded-[48px] border-2 transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl overflow-hidden ${
-                isEligible 
-                  ? 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-primary/50' 
-                  : 'bg-slate-50 dark:bg-slate-950 border-slate-100 dark:border-slate-900 opacity-60 grayscale'
-              }`}
+              className={`group relative rounded-[48px] border-2 transition-all duration-500 overflow-hidden ${
+                isExpanded 
+                  ? 'bg-white dark:bg-slate-900 border-primary shadow-2xl scale-[1.02]' 
+                  : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-primary/30 hover:shadow-xl cursor-pointer'
+              } ${!isEligible && !isExpanded ? 'opacity-60 grayscale' : ''}`}
+              onClick={() => !isExpanded && setExpandedId(grant.id)}
             >
-              {/* 배경 장식 (합격 확률 강조) */}
-              <div className="absolute -top-10 -right-10 w-40 h-40 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-colors" />
+              {/* 공고 요약 헤더 (항상 보임) */}
+              <div className="p-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+                <div className="flex-1 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <span className="px-4 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                      {grant.agency}
+                    </span>
+                    <span className={`text-sm font-black ${grant.dDay <= 7 ? 'text-accent' : 'text-primary'}`}>
+                      D-{grant.dDay}
+                    </span>
+                  </div>
+                  <h3 className={`text-2xl font-black transition-colors ${isExpanded ? 'text-primary' : 'text-slate-900 dark:text-white'}`}>
+                    {grant.title}
+                  </h3>
+                </div>
 
-              <div className="flex justify-between items-start mb-8 relative z-10">
-                <span className="px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
-                  {grant.agency}
-                </span>
-                <div className="text-right">
-                  <span className={`text-sm font-black ${grant.dDay <= 7 ? 'text-accent' : 'text-primary'}`}>
-                    D-{grant.dDay}
-                  </span>
+                <div className="flex items-center gap-12">
+                  <div className="text-right">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">지원 규모</p>
+                    <p className="text-xl font-black text-slate-900 dark:text-white">{grant.amount}</p>
+                  </div>
+                  <div className="text-right min-w-[100px]">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">합격 확률</p>
+                    <div className="flex items-baseline justify-end gap-1">
+                      <span className="text-4xl font-black text-primary">{score}</span>
+                      <span className="text-sm font-black text-slate-400">%</span>
+                    </div>
+                  </div>
+                  {isExpanded && (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setExpandedId(null); }}
+                      className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-red-500 transition-all"
+                    >
+                      <span className="material-symbols-outlined">close</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
-              <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-6 leading-tight group-hover:text-primary transition-colors">
-                {grant.title}
-              </h3>
+              {/* 확장된 상세 정보 영역 */}
+              {isExpanded && (
+                <div className="px-10 pb-10 animate-in slide-in-from-top-4 duration-500 space-y-10">
+                  <div className="h-[2px] bg-slate-50 dark:bg-slate-800" />
+                  
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                    {/* 왼쪽: AI 정밀 분석 */}
+                    <div className="space-y-6">
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                        <span className="material-symbols-outlined text-sm">psychology</span>
+                        AI Strategic Analysis
+                      </h4>
+                      <div className="bg-primary text-white rounded-[40px] p-8 space-y-6 relative overflow-hidden shadow-xl shadow-primary/20">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-bl-[100px] -mr-8 -mt-8" />
+                        <p className="text-sm font-bold leading-relaxed relative z-10">
+                          "{profile.name}님, 분석 결과 본 사업은 귀사의 **현재 업력({yearsSinceEstablishment}년)**과 **보유 특허 {profile.patents}건**을 활용한 기술 혁신형 과제에 매우 적합합니다. 벤처기업 인증 정보를 에디터에 포함하면 합격 확률이 더욱 상승할 것입니다."
+                        </p>
+                      </div>
+                    </div>
 
-              <div className="flex items-end justify-between relative z-10">
-                <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">지원 규모</p>
-                  <p className="text-2xl font-black text-slate-900 dark:text-white">{grant.amount}</p>
-                </div>
-                
-                <div className="text-right">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">합격 확률</p>
-                  <div className="flex items-baseline gap-1">
-                    <span className={`text-4xl font-black ${isEligible ? 'text-primary' : 'text-slate-400'}`}>
-                      {isEligible ? score : '0'}
-                    </span>
-                    <span className="text-sm font-black text-slate-400">%</span>
+                    {/* 오른쪽: 상세 조건 리스트 */}
+                    <div className="space-y-6">
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                        <span className="material-symbols-outlined text-sm">assignment</span>
+                        Detailed Requirements
+                      </h4>
+                      <div className="grid grid-cols-1 gap-4">
+                        {[
+                          { label: '주관 기관', value: grant.agency },
+                          { label: '공고 분류', value: grant.category },
+                          { label: '업력 요건', value: `${grant.requirements.maxYears || '전체'}년 이하` },
+                          { label: '필수 인증', value: grant.requirements.needsVenture ? '벤처기업 인증' : '해당 없음' },
+                        ].map((item, i) => (
+                          <div key={i} className="flex justify-between items-center p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl">
+                            <span className="text-xs text-slate-400 font-black uppercase">{item.label}</span>
+                            <span className="text-sm font-black text-slate-900 dark:text-white">{item.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 하단 액션 버튼 */}
+                  <div className="flex flex-col md:flex-row gap-4 pt-6">
+                    {!isEligible && (
+                      <div className="flex-1 flex items-center gap-3 bg-red-50 dark:bg-red-900/10 text-red-500 p-6 rounded-3xl border border-red-100 dark:border-red-900/30">
+                        <span className="material-symbols-outlined">warning</span>
+                        <p className="text-xs font-black">자격 요건이 부족합니다: {yearsSinceEstablishment > (grant.requirements.maxYears || 99) ? '업력 초과' : '기타 조건 미달'}</p>
+                      </div>
+                    )}
+                    <button 
+                      onClick={() => handleStartStrategy(grant.title)}
+                      className="flex-1 py-6 rounded-3xl bg-slate-950 dark:bg-primary text-white font-black text-sm flex items-center justify-center gap-3 hover:scale-[1.02] shadow-2xl transition-all"
+                    >
+                      <span className="material-symbols-outlined">rocket_launch</span>
+                      이 공고로 즉시 전략 수립 시작
+                    </button>
+                    <button 
+                      onClick={() => setExpandedId(null)}
+                      className="px-8 py-6 rounded-3xl bg-slate-100 dark:bg-slate-800 text-slate-500 font-black text-sm hover:bg-slate-200 transition-all"
+                    >
+                      닫기
+                    </button>
                   </div>
                 </div>
-              </div>
-
-              {/* 자격 미달 시 안내 문구 */}
-              {!isEligible && (
-                <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2 text-xs font-black text-red-500">
-                  <span className="material-symbols-outlined text-sm">warning</span>
-                  자격 요건 미달: {yearsSinceEstablishment > (grant.requirements.maxYears || 99) ? '업력 초과' : '인증 부족 등'}
-                </div>
-              )}
-
-              {/* 액션 버튼 */}
-              {isEligible && (
-                <button 
-                  onClick={() => handleStartStrategy(grant.title)}
-                  className="w-full mt-10 py-5 rounded-[24px] bg-slate-900 dark:bg-primary text-white font-black text-sm flex items-center justify-center gap-2 hover:bg-primary transition-colors"
-                >
-                  <span className="material-symbols-outlined">rocket_launch</span>
-                  전략 수립 시작
-                </button>
               )}
             </div>
           );

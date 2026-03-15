@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { generateAIDraft } from '../api/ai';
+import { db, auth } from '../lib/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface AIFeedback {
   id: string;
@@ -16,36 +18,68 @@ export interface ProposalDoc {
 }
 
 interface EditorState {
-  currentView: 'dashboard' | 'matching' | 'vault' | 'settings' | 'membership';
+  currentView: 'dashboard' | 'matching' | 'vault' | 'settings' | 'membership' | 'documents_vault';
   documents: ProposalDoc[];
   activeId: string | null;
   isAnalyzing: boolean;
+  isLoading: boolean;
   feedbacks: AIFeedback[];
   currentPlan: 'Standard' | 'Pro' | 'Max';
   
   // Actions
-  setView: (view: 'dashboard' | 'matching' | 'vault' | 'settings' | 'membership') => void;
+  setView: (view: 'dashboard' | 'matching' | 'vault' | 'settings' | 'membership' | 'documents_vault') => void;
   setActiveId: (id: string | null) => void;
+  loadProposals: () => Promise<void>;
   addDocument: (title?: string) => string;
-  updateActiveContent: (content: string) => void;
-  updateActiveTitle: (title: string) => void;
-  deleteDocument: (id: string) => void;
+  updateActiveContent: (content: string) => Promise<void>;
+  updateActiveTitle: (title: string) => Promise<void>;
+  completeActiveDocument: () => Promise<void>;
+  deleteDocument: (id: string) => Promise<void>;
   setPlan: (plan: 'Standard' | 'Pro' | 'Max') => void;
   runAIAnalysis: (companyData: any) => Promise<void>;
   autoFillFromVault: (companyData: any) => Promise<void>;
 }
+
+const syncToFirestore = async (docs: ProposalDoc[]) => {
+  const user = auth.currentUser;
+  if (!user) return;
+  try {
+    const docRef = doc(db, 'proposals', user.uid);
+    await setDoc(docRef, { items: docs }, { merge: true });
+  } catch (error) {
+    console.error("Firestore Sync Error:", error);
+  }
+};
 
 export const useEditorStore = create<EditorState>((set, get) => ({
   currentView: 'dashboard',
   documents: [],
   activeId: null,
   isAnalyzing: false,
+  isLoading: false,
   feedbacks: [],
   currentPlan: 'Pro',
 
   setView: (view) => set({ currentView: view }),
   setActiveId: (id) => set({ activeId: id, feedbacks: [] }),
   
+  loadProposals: async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+    set({ isLoading: true });
+    try {
+      const docRef = doc(db, 'proposals', user.uid);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        set({ documents: docSnap.data().items as ProposalDoc[] });
+      }
+    } catch (error) {
+      console.error("Error loading proposals:", error);
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
   addDocument: (title) => {
     const newId = Math.random().toString(36).substring(7);
     const newDoc: ProposalDoc = {
@@ -55,22 +89,42 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       lastModified: new Date().toISOString(),
       status: 'Draft'
     };
-    set(state => ({ documents: [newDoc, ...state.documents], activeId: newId }));
+    const updatedDocs = [newDoc, ...get().documents];
+    set({ documents: updatedDocs, activeId: newId });
+    syncToFirestore(updatedDocs);
     return newId;
   },
 
-  updateActiveContent: (content) => set(state => ({
-    documents: state.documents.map(d => d.id === state.activeId ? { ...d, content, lastModified: new Date().toISOString() } : d)
-  })),
+  updateActiveContent: async (content) => {
+    const updatedDocs = get().documents.map(d => 
+      d.id === get().activeId ? { ...d, content, lastModified: new Date().toISOString() } : d
+    );
+    set({ documents: updatedDocs });
+    syncToFirestore(updatedDocs);
+  },
 
-  updateActiveTitle: (title) => set(state => ({
-    documents: state.documents.map(d => d.id === state.activeId ? { ...d, title, lastModified: new Date().toISOString() } : d)
-  })),
+  updateActiveTitle: async (title) => {
+    const updatedDocs = get().documents.map(d => 
+      d.id === get().activeId ? { ...d, title, lastModified: new Date().toISOString() } : d
+    );
+    set({ documents: updatedDocs });
+    syncToFirestore(updatedDocs);
+  },
 
-  deleteDocument: (id) => set(state => ({
-    documents: state.documents.filter(d => d.id !== id),
-    activeId: state.activeId === id ? (state.documents[0]?.id || null) : state.activeId
-  })),
+  completeActiveDocument: async () => {
+    const updatedDocs = get().documents.map(d => 
+      d.id === get().activeId ? { ...d, status: 'Complete' as const, lastModified: new Date().toISOString() } : d
+    );
+    set({ documents: updatedDocs });
+    syncToFirestore(updatedDocs);
+  },
+
+  deleteDocument: async (id) => {
+    const updatedDocs = get().documents.filter(d => d.id !== id);
+    const nextActiveId = get().activeId === id ? null : get().activeId;
+    set({ documents: updatedDocs, activeId: nextActiveId });
+    syncToFirestore(updatedDocs);
+  },
 
   setPlan: (plan) => set({ currentPlan: plan }),
   
@@ -125,4 +179,3 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
   }
 }));
-

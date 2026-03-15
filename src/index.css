@@ -8,20 +8,23 @@
   --font-sans: "Public Sans", sans-serif;
 }
 
+/* Tailwind v4에서 다크모드 클래스 전략 강제 적용 */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 font-sans;
-    /* selection은 @apply 대신 직접 CSS로 작성하는 것이 안전합니다 */
+    @apply bg-slate-50 text-slate-900 font-sans transition-colors duration-300;
     font-family: var(--font-sans);
+  }
+
+  /* 다크모드일 때 바디 배경색 강제 지정 */
+  .dark body {
+    @apply bg-slate-950 text-slate-100;
   }
 
   body::selection {
     background-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
     color: var(--color-primary);
-  }
-
-  .dark body {
-    @apply bg-slate-950 text-slate-100;
   }
 
   /* Control Tower Scrollbar */

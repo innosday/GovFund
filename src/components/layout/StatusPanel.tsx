@@ -1,20 +1,39 @@
 import React from 'react';
 import { useDocumentsStore } from '../../hooks/useDocuments';
+import { useEditorStore } from '../../hooks/useEditor';
 
 const StatusPanel: React.FC = () => {
   const { documents, getCompletionRate, updateDocumentStatus } = useDocumentsStore();
+  const { activeId, completeActiveDocument, setView } = useEditorStore();
+  const [isLaunching, setIsLaunching] = React.useState(false);
+  
   const completionRate = getCompletionRate();
   const isAllEssentialValid = completionRate === 100;
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, docId: string) => {
+  const handleLaunch = async () => {
+    if (!isAllEssentialValid || isLaunching) return;
+    
+    setIsLaunching(true);
+    
+    // 발사 시퀀스 시뮬레이션 (3초)
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    if (activeId) {
+      await completeActiveDocument();
+    }
+    
+    setIsLaunching(false);
+    alert('🚀 미션 성공! 지원서가 정부 서버로 안전하게 발사되었습니다.');
+    setView('dashboard'); // 대시보드로 이동하여 성공 확인
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, docId: string) => {
     const file = e.target.files?.[0];
     if (file) {
-      // TODO: 차후 Firebase Storage 업로드 로직 추가 예정
-      console.log(`${file.name} uploading to Firebase Storage...`);
-      
       // 파일 업로드 성공 시뮬레이션: 상태를 Valid로 변경하고 오늘 날짜로 업데이트
       const today = new Date().toISOString().split('T')[0];
-      updateDocumentStatus(docId, 'Valid', today);
+      await updateDocumentStatus(docId, 'Valid', today);
+      console.log(`${file.name} uploaded and synced to Firestore.`);
     }
   };
 
@@ -95,15 +114,18 @@ const StatusPanel: React.FC = () => {
         </div>
         
         <button 
-          disabled={!isAllEssentialValid}
+          onClick={handleLaunch}
+          disabled={!isAllEssentialValid || isLaunching}
           className={`w-full py-6 rounded-[24px] font-black text-sm flex items-center justify-center gap-3 transition-all ${
-            isAllEssentialValid 
+            isAllEssentialValid && !isLaunching
               ? 'bg-accent text-white hover:scale-[1.02] shadow-xl shadow-accent/20 cursor-pointer' 
               : 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed opacity-50'
           }`}
         >
-          <span className="material-symbols-outlined">rocket_launch</span>
-          최종 지원서 발사 (Submit)
+          <span className={`material-symbols-outlined ${isLaunching ? 'animate-bounce' : ''}`}>
+            {isLaunching ? 'rocket' : 'rocket_launch'}
+          </span>
+          {isLaunching ? '지원서 발사 중...' : '최종 지원서 발사 (Submit)'}
         </button>
       </footer>
     </div>

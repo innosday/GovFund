@@ -9,6 +9,7 @@ export interface Document {
   status: 'Missing' | 'Expired' | 'Valid';
   expiryDate?: string;
   isEssential: boolean;
+  isCustom?: boolean; // 커스텀 여부
   lastUpdated?: string;
 }
 
@@ -26,6 +27,10 @@ interface DocumentsState {
   isLoading: boolean;
   loadDocuments: () => Promise<void>;
   updateDocumentStatus: (id: string, status: Document['status'], date?: string) => Promise<void>;
+  removeDocument: (id: string) => Promise<void>;
+  resetDocuments: () => Promise<void>;
+  addCustomDocument: (name: string, category: Document['category']) => Promise<void>;
+  deleteCustomDocument: (id: string) => Promise<void>;
   getCompletionRate: () => number;
 }
 
@@ -41,7 +46,7 @@ export const useDocumentsStore = create<DocumentsState>((set, get) => ({
     try {
       const docRef = doc(db, 'documents', user.uid);
       const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
+      if (docSnap.exists() && docSnap.data().items) {
         set({ documents: docSnap.data().items as Document[] });
       } else {
         try {
@@ -52,8 +57,7 @@ export const useDocumentsStore = create<DocumentsState>((set, get) => ({
         set({ documents: defaultDocuments });
       }
     } catch (error: any) {
-      console.error("Firestore loading error (documents):", error);
-      // 에러 발생 시(오프라인 등) 기본 리스트 유지
+      console.error("Firestore loading error:", error);
       set({ documents: defaultDocuments });
     } finally {
       set({ isLoading: false });
@@ -66,7 +70,6 @@ export const useDocumentsStore = create<DocumentsState>((set, get) => ({
       doc.id === id ? { ...doc, status, lastUpdated: date || new Date().toISOString().split('T')[0] } : doc
     );
 
-    // UI 즉시 업데이트 (Optimistic)
     set({ documents: updatedDocuments });
 
     if (user) {
@@ -75,6 +78,79 @@ export const useDocumentsStore = create<DocumentsState>((set, get) => ({
         await setDoc(docRef, { items: updatedDocuments }, { merge: true });
       } catch (error) {
         console.error("Error saving documents:", error);
+      }
+    }
+  },
+
+  removeDocument: async (id) => {
+    const user = auth.currentUser;
+    const updatedDocuments = get().documents.map(doc => 
+      doc.id === id ? { ...doc, status: 'Missing' as const, lastUpdated: '' } : doc
+    );
+
+    set({ documents: updatedDocuments });
+
+    if (user) {
+      try {
+        const docRef = doc(db, 'documents', user.uid);
+        await setDoc(docRef, { items: updatedDocuments });
+      } catch (error) {
+        console.error("Error removing document:", error);
+      }
+    }
+  },
+
+  addCustomDocument: async (name, category) => {
+    const user = auth.currentUser;
+    const newDoc: Document = {
+      id: `custom-${Math.random().toString(36).substring(7)}`,
+      name: name || '제목 없는 서류',
+      category,
+      status: 'Missing',
+      isEssential: false,
+      isCustom: true
+    };
+    
+    const updatedDocuments = [...get().documents, newDoc];
+    set({ documents: updatedDocuments });
+
+    if (user) {
+      try {
+        const docRef = doc(db, 'documents', user.uid);
+        await setDoc(docRef, { items: updatedDocuments }, { merge: true });
+      } catch (error) {
+        console.error("Error adding custom document:", error);
+      }
+    }
+  },
+
+  deleteCustomDocument: async (id) => {
+    const user = auth.currentUser;
+    const updatedDocuments = get().documents.filter(doc => doc.id !== id);
+    set({ documents: updatedDocuments });
+
+    if (user) {
+      try {
+        const docRef = doc(db, 'documents', user.uid);
+        await setDoc(docRef, { items: updatedDocuments });
+      } catch (error) {
+        console.error("Error deleting custom document:", error);
+      }
+    }
+  },
+
+  resetDocuments: async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    if (confirm('모든 서류 데이터를 초기화하시겠습니까? 클라우드 데이터가 삭제됩니다.')) {
+      set({ documents: defaultDocuments });
+      try {
+        const docRef = doc(db, 'documents', user.uid);
+        await setDoc(docRef, { items: defaultDocuments });
+        alert('데이터가 성공적으로 초기화되었습니다.');
+      } catch (error) {
+        console.error("Error resetting documents:", error);
       }
     }
   },

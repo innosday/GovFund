@@ -6,50 +6,52 @@ import { useEditorStore } from '../../hooks/useEditor';
 const DashboardView: React.FC = () => {
   const { profile } = useCompanyStore();
   const { getCompletionRate } = useDocumentsStore();
-  const { title: activeProposal } = useEditorStore();
+  const { documents, activeId, setView } = useEditorStore();
   
+  // 활성화된 문서 제목 가져오기
+  const activeProposal = documents.find(d => d.id === activeId)?.title || '진행 중인 프로젝트 없음';
   const completionRate = getCompletionRate();
 
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-1000">
       {/* 1. Top Section: Strategic Overview */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 bg-slate-950 rounded-[48px] p-10 text-white relative overflow-hidden shadow-2xl">
+        <div className="lg:col-span-2 bg-primary dark:bg-slate-950 rounded-[48px] p-10 text-white relative overflow-hidden shadow-2xl transition-colors duration-500">
           {/* Subtle Grid Background */}
           <div className="absolute inset-0 opacity-10 pointer-events-none" 
-               style={{ backgroundImage: 'radial-gradient(circle, #334155 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+               style={{ backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
           
           <div className="relative z-10 space-y-8">
             <header className="flex justify-between items-start">
               <div>
-                <h2 className="text-sm font-black text-primary uppercase tracking-[0.3em] mb-2">Company Strategic Health</h2>
+                <h2 className="text-sm font-black text-white/60 uppercase tracking-[0.3em] mb-2">Company Strategic Health</h2>
                 <h1 className="text-4xl font-black">{profile.name}</h1>
               </div>
-              <div className="bg-primary/20 text-primary border border-primary/30 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest">
+              <div className="bg-white/20 text-white border border-white/30 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest">
                 Operational Status: Ready
               </div>
             </header>
 
-            <div className="grid grid-cols-3 gap-8 pt-8 border-t border-slate-800">
+            <div className="grid grid-cols-3 gap-8 pt-8 border-t border-white/10">
               <div>
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Success Probability</p>
+                <p className="text-[10px] font-black text-white/50 uppercase tracking-widest mb-2">Success Probability</p>
                 <div className="flex items-baseline gap-2">
                   <span className="text-5xl font-black text-white">84</span>
-                  <span className="text-xl font-black text-primary">%</span>
+                  <span className="text-xl font-black text-white/60">%</span>
                 </div>
               </div>
               <div>
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Active Proposals</p>
+                <p className="text-[10px] font-black text-white/50 uppercase tracking-widest mb-2">Active Proposals</p>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-5xl font-black text-white">01</span>
-                  <span className="text-xl font-black text-slate-400">/ 03</span>
+                  <span className="text-5xl font-black text-white">{documents.length.toString().padStart(2, '0')}</span>
+                  <span className="text-xl font-black text-white/40">/ 03</span>
                 </div>
               </div>
               <div>
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">R&D Investment</p>
+                <p className="text-[10px] font-black text-white/50 uppercase tracking-widest mb-2">R&D Investment</p>
                 <div className="flex items-baseline gap-2">
                   <span className="text-5xl font-black text-white">{profile.rndInvestment}</span>
-                  <span className="text-xl font-black text-accent">%</span>
+                  <span className="text-xl font-black text-accent-dark">%</span>
                 </div>
               </div>
             </div>
@@ -70,7 +72,10 @@ const DashboardView: React.FC = () => {
             <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
               <div className="h-full bg-primary" style={{ width: `${completionRate}%` }} />
             </div>
-            <button className="w-full py-4 rounded-2xl bg-slate-900 dark:bg-slate-800 text-white font-black text-xs hover:bg-primary transition-colors">
+            <button 
+              onClick={() => setView('documents_vault')}
+              className="w-full py-4 rounded-2xl bg-primary dark:bg-slate-800 text-white font-black text-xs hover:bg-primary-dark transition-colors cursor-pointer shadow-lg shadow-primary/20"
+            >
               문서 금고 관리하기
             </button>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useEditorStore } from '../../hooks/useEditor';
 import { useCompanyStore } from '../../hooks/useCompany';
 
@@ -100,7 +100,7 @@ const VaultView: React.FC = () => {
           <div>
             <input 
               type="text" 
-              value={activeDoc.title}
+              value={activeDoc?.title || ''}
               onChange={(e) => updateActiveTitle(e.target.value)}
               className="bg-transparent text-3xl font-black text-slate-950 dark:text-white outline-none focus:ring-0"
               placeholder="프로젝트 제목"
@@ -143,11 +143,11 @@ const VaultView: React.FC = () => {
               <div className="w-[1px] h-5 bg-slate-200 dark:bg-slate-800" />
               <span className="material-symbols-outlined text-xl cursor-pointer hover:text-primary transition-colors">attach_file</span>
             </div>
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Words: {activeDoc.content.length}</span>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Words: {activeDoc?.content.length || 0}</span>
           </div>
           
           <textarea 
-            value={activeDoc.content}
+            value={activeDoc?.content || ''}
             onChange={(e) => updateActiveContent(e.target.value)}
             className="flex-1 w-full p-12 bg-transparent text-slate-700 dark:text-slate-300 font-bold leading-relaxed resize-none outline-none control-tower-scrollbar text-lg"
             placeholder="사업계획서 내용을 작성하세요. 상단의 'AI 초안 생성'을 누르면 자동으로 작성을 시작합니다."

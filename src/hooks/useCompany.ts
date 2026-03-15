@@ -87,7 +87,7 @@ export const useCompanyStore = create<CompanyState>((set, get) => ({
     }
   },
 
-  calculateSuccessScore: (grantRequirements) => {
+  calculateSuccessScore: (_grantRequirements) => {
     const { profile } = get();
     let score = 70;
     if (profile.hasVentureCert) score += 10;
