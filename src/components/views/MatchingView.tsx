@@ -33,47 +33,71 @@ const MatchingView: React.FC = () => {
     setView('vault');
   };
 
+  // 공고 정렬 로직 (1순위: 자격 충족, 2순위: 합격 확률 높은 순, 3순위: 마감 임박 순)
+  const sortedGrants = useMemo(() => {
+    return [...mockGrants].map(grant => ({
+      ...grant,
+      isEligible: checkEligibility(grant),
+      score: calculateSuccessScore(grant.requirements)
+    })).sort((a, b) => {
+      if (a.isEligible && !b.isEligible) return -1;
+      if (!a.isEligible && b.isEligible) return 1;
+      
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
+      
+      return a.dDay - b.dDay;
+    });
+  }, [profile, yearsSinceEstablishment]);
+
   return (
-    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
-      <header className="flex justify-between items-end">
-        <div>
-          <h1 className="text-4xl font-black text-slate-950 dark:text-white mb-2">전략적 매칭</h1>
-          <p className="text-slate-500 dark:text-slate-400 font-bold">
-            {profile.name}님의 기업 데이터를 기반으로 정밀 분석한 추천 공고입니다.
-          </p>
-        </div>
-        <div className="flex gap-4">
-          <div className="text-right">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">현재 업력</span>
-            <span className="text-xl font-black text-primary">{yearsSinceEstablishment}년차</span>
-          </div>
-          <div className="w-[1px] h-10 bg-slate-200 dark:bg-slate-800" />
-          <div className="text-right">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">보유 특허</span>
-            <span className="text-xl font-black text-primary">{profile.patents}건</span>
-          </div>
-        </div>
-      </header>
-
-      {/* 매칭 엔진 요약 카드 */}
-      <section className="bg-primary/5 border-2 border-primary/20 p-8 rounded-[48px] flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <div className="w-16 h-16 bg-primary rounded-3xl flex items-center justify-center shadow-lg shadow-primary/20">
-            <span className="material-symbols-outlined text-white text-3xl">psychology</span>
-          </div>
+    <div className="h-[calc(100vh-140px)] flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-700">
+      
+      {/* 상단 고정 영역 (Fixed) */}
+      <div className="flex-shrink-0 space-y-8 pb-6">
+        <header className="flex justify-between items-end">
           <div>
-            <h2 className="text-xl font-black text-slate-900 dark:text-white">AI 매칭 엔진 가동 중</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 font-bold">총 3,421개의 정부 공고 중 {mockGrants.length}개의 최적 사업을 발견했습니다.</p>
+            <h1 className="text-4xl font-black text-slate-950 dark:text-white mb-2">전략적 매칭</h1>
+            <p className="text-slate-500 dark:text-slate-400 font-bold">
+              {profile.name}님의 기업 데이터를 기반으로 정밀 분석한 추천 공고입니다.
+            </p>
           </div>
-        </div>
-      </section>
+          <div className="flex gap-4">
+            <div className="text-right">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">현재 업력</span>
+              <span className="text-xl font-black text-primary">{yearsSinceEstablishment}년차</span>
+            </div>
+            <div className="w-[1px] h-10 bg-slate-200 dark:bg-slate-800" />
+            <div className="text-right">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">보유 특허</span>
+              <span className="text-xl font-black text-primary">{profile.patents}건</span>
+            </div>
+          </div>
+        </header>
 
-      {/* 공고 리스트 (확장형) */}
-      <div className="space-y-8">
-        {mockGrants.map((grant) => {
+        {/* 매칭 엔진 요약 카드 */}
+        <section className="bg-primary/5 border-2 border-primary/20 p-8 rounded-[48px] flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-6">
+            <div className="w-16 h-16 bg-primary rounded-3xl flex items-center justify-center shadow-lg shadow-primary/20">
+              <span className="material-symbols-outlined text-white text-3xl">psychology</span>
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-slate-900 dark:text-white">AI 매칭 엔진 가동 중</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 font-bold">총 3,421개의 정부 공고 중 {sortedGrants.filter(g => g.isEligible).length}개의 최적 사업을 발견했습니다.</p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      {/* 공고 리스트 (Scrollable Area) */}
+      <div className="flex-1 overflow-y-auto control-tower-scrollbar pr-4 -mr-4 pb-10 space-y-8 relative">
+        {/* 상단 그라데이션 블러 효과 */}
+        <div className="sticky top-0 left-0 right-0 h-6 bg-gradient-to-b from-slate-50 dark:from-slate-950 to-transparent pointer-events-none z-10 -mt-2" />
+        
+        {sortedGrants.map((grant) => {
           const isExpanded = expandedId === grant.id;
-          const isEligible = checkEligibility(grant);
-          const score = calculateSuccessScore(grant.requirements);
+          const { isEligible, score } = grant;
 
           return (
             <div 
